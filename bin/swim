@@ -1,0 +1,16 @@
+#! /usr/bin/python2.7
+import argparse
+import json
+from swim.swim import Swim
+from swim import make_connection_string
+parser = argparse.ArgumentParser()
+parser.add_argument("host", help="Host to run on", default="127.0.0.1")
+parser.add_argument("port", help="Port to run on", default=5900)
+parser.add_argument("--hosts-list", help="Hosts to use", default="./hosts.json")
+parsed = parser.parse_args()
+hosts_list = json.loads( open(parsed.hosts_list).read() )
+
+swim = Swim({
+        "local": make_connection_string(parsed.host, int(parsed.port)),
+        "hosts": hosts_list })
+swim.start()
