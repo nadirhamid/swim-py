@@ -12,12 +12,11 @@ from .message_proc import MessageProc
 from .message_proc_types import MessageProcTypes
 from .membership_process import MembershipProcess
 from . import logger
-from .base import Base
 from multiprocessing import Manager, Process
 from traceback import print_exc
 import uuid
 
-class Swim(Base):
+class Swim(object):
     def __init__(self, opts):
         self.status = SwimStatus.STOPPED
         self.opts = SwimOptions(opts)

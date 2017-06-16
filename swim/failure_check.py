@@ -8,7 +8,6 @@ from .message import Message
 from .message_proc_types import MessageProcTypes
 from .message_proc import MessageProc
 
-from .failure_sequence import FailureSequence
 from . import logger
 from traceback import print_exc
 import time
