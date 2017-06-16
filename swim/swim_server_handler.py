@@ -54,3 +54,4 @@ class SwimServerHandler(SwimClient, SocketServer.BaseRequestHandler):
             hostname =self.request.getpeername()
             logger.info("HANDLER FAILED FOR %s"%(hostname,))
             logger.info("PARSE MESSAGE FAILED FOR SENDER %s, DATA %s"%( make_connection_string( hostname[0], hostname[1] ), data ))
+        self.request.close()
