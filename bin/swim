@@ -4,7 +4,7 @@ import json
 from swim.swim import Swim
 from swim import make_connection_string
 parser = argparse.ArgumentParser()
-parser.add_argument("host", help="Host to run on", default="127.0.0.1")
+parser.add_argument("host", help="Host to run on", default="0.0.0.0")
 parser.add_argument("port", help="Port to run on", default=5900)
 parser.add_argument("--hosts-list", help="Hosts to use", default="./hosts.json")
 parsed = parser.parse_args()
