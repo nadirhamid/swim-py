@@ -37,7 +37,23 @@ class SwimServerHandler(SwimClient, SocketServer.BaseRequestHandler):
              sender, 
              candidate)
     def handle_update(self, sender, message):
-        self.server.swim.membership.update(message)
+        logger.info("HANDLING UPDATE")
+        member = Member(message.get_destination_host(), message.get_destination_port())
+        def handle_local_disseminate():
+            if message.get_state()==MemberStatus.FAULTY:
+                self.queue.put(MessageProc(MessageProcTypes.MEMBER_LOCAL_INCREMENT))
+                alive_update = Message(MessageTypes.UPDATE, **dict(
+                    destination=local_member.connection_string(),
+                   state=MemberStatus.ALIVE ))
+                self.queue.put(MessageProc(MessageProcTypes.DISSEMINATE, alive_update))
+        def handle_disseminate():
+            self.queue.put(MessageProcDisseminate(message, member))
+            
+        if ( message.connection_string()==local_member.connection_string() ):
+           handle_local_disseminate()
+        else:
+           handle_dissemninate()
+        
     def handle_sync(self, sender, message):
         member = Member(message.get_host(), message.get_port())
         self.queue.put(MessageProc(MessageProcTypes.SYNC,member))

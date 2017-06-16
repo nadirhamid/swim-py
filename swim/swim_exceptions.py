@@ -10,3 +10,6 @@ class SwimPingFailedException(SwimException):
 
 class SwimPingRequestFailedException(SwimException):
     pass
+
+class SwimDisseminationFailedException(SwimException):
+    pass

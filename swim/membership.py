@@ -12,8 +12,9 @@ import os
 import time
 import socket
 class Membership(MemberList):
-    def __init__(self, opts):
+    def __init__(self, member_local, opts):
         MemberList.__init__(self, opts.get("hosts"))
+        self.member_local = member_local
         self.opts = opts
     def get_members(self):        
         return self.members
@@ -29,33 +30,51 @@ class Membership(MemberList):
         logger.info("MEMBERSHIP UPDATE START FOR: %s"%(member.connection_string()))
         memory_member = self.from_host_and_port(member.get_host(), member.get_port())
         eval_state = member.get_state()
+        def message_sort(message_a, message_b):
+            state_a = message_a.get_state() 
+            incarnation_a = message_a.get_incarnation()
+            state_b = message_b.get_state() 
+            incarnation_b = message_b.get_incarnation()
+            if ( state_a == MemberStatus.CONFIRM ):
+                return -1
+            if (  ( state_a == MemberStatus.ALIVE and state_b == MemberStatus.SUSPECT ) and ( incarnation_a > incarnation_b ) ):
+                return -1
+            if (  ( state_a == MemberStatus.SUSPECT and state_b == MemberStatus.ALIVE ) and ( incarnation_a > incarnation_b ) ):
+                return -1
+            return 1
+
+        def determine_state():
+           self.queue.put(MessageProc(MessageProcTypes.MEMBER), MessageProcMember(member,pid))
+           member = self.recv_queue.get()
+           messages = member.get_message_queue()
+           first_message = sorted(messages, cmp=message_sort)[0]
+           return first_message.get_state()
+            
+         
         def refresh_member(state):
             memory_member.update(state)
             message = MessageProc(MessageProcTypes.UPDATE_MEMBER,memory_member)
             self.queue.put( message )
+
         def first_state_eval(state):
-            if ( eval_state == MemberStatus.ALIVE ):
-                refresh_member(eval_state)
-            elif ( eval_state == MemberStatus.SUSPECT ):
-                refresh_member(eval_state)
-                suspect_timeout()
+           state = determine_state(messages)
+           refresh_member(state)
+           if state == MemberStatus.SUSPECT:
+              suspect_timeout()
+
         def suspect_timeout():
            logger.info("IN SUSPECT TIMEOUT FOR %s"%( member.connection_string(), ))
            time.sleep(SwimDefaults.SUSPECT_TIMEOUT)
            pid = os.getpid()
-           self.queue.put(MessageProc(MessageProcTypes.MEMBER), MessageProcMember(member,pid))
-           member = self.recv_queue.get()
-           reeval_state = member.get_state()
+           state = determine_state()
+           
            logger.info("REEVALUTED STATUS FOR %s IS %s"%(member.connection_string(), reeval_state,))
-           ## check if we're still a suspect
-           ## when we are not ignore any further
-           ## update
-           if ( reeval_state == eval_state ) and ( eval_state == MemberStatus.SUSPECT ):
-             ## it has failed
-             refresh_member(MemberStatus.FAULTY)
-
-        if member.get_state()!=memory_member.get_state():
-            first_state_eval(eval_state)
+           self.queue.put( MessageProc(MessageProcTypes.DISSEMINATE,Message(
+                   MessageTypes.UPDATE,
+                   **dict(
+                        destination=member.connection_string(),
+                        state=state ) ) ))
+        first_state_eval(eval_state)
     def sync(self, data):
         def map_destination( destination ):
            host_string = destination.split(":")

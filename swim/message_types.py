@@ -4,4 +4,5 @@ class MessageTypes(object):
     PING_REQUEST = "PING_REQUEST"
     ACK =  "ACK"
     UPDATE = "UPDATE"
+    CONFIRM = "CONFIRM"
     SYNC = "SYNC"

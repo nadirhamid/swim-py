@@ -7,6 +7,7 @@ from .message_types import MessageTypes
 from .message import Message
 from .message_proc_types import MessageProcTypes
 from .message_proc import MessageProc
+from .message_proc_disseminate import MessageProcDisseminate
 
 from . import logger
 from traceback import print_exc
@@ -18,7 +19,9 @@ class FailureCheck(SwimClient):
 
    def try_a_ping(self, ping_candidate):
        try:
-           self.send(ping_candidate, Message(MessageTypes.PING), 
+           self.send_with_incarnation(
+                    MessageProcTypes.MEMBER_LOCAL_FAILURE,
+                    ping_candidate, Message(MessageTypes.PING), 
                     timeout=self.opts.ping_timeout)
        except Exception,ex: ## A socket exception
          print_exc(ex)
@@ -73,7 +76,8 @@ class FailureCheck(SwimClient):
    def relay_ping_request(self, ping_request_candidate, ping_candidate):
         try:
            logger.info("RELAYING PING REQUEST FROM %s TO %s"%( ping_request_candidate.connection_string(), ping_candidate.connection_string(), ))
-           self.send(
+           self.send_with_incarnation(
+            MessageProcTypes.MEMBER_LOCAL_FAILURE,
             ping_request_candidate,
             Message(MessageTypes.PING_REQUEST,
                 **dict(
@@ -88,11 +92,11 @@ class FailureCheck(SwimClient):
             raise SwimPingRequestFailedException()
    def mark_as(self, ping_candidate, status):
        logger.info("MARKING CANDIDATE %s STATE TO %s"%( ping_candidate.connection_string(), status, ))
-       ping_candidate.set_state( status )
-       logger.info("UPDATING MEMBER IN MEMBER QUEUE")
-       self.queue.put(
-            MessageProc(MessageProcTypes.UPDATE_MEMBER_START,
-                ping_candidate ) )
+       self.queue.put( 
+          MessageProcDisseminate(ping_candidate,Message(MessageTypes.UPDATE, **dict(
+                state=status
+            )) )
+       )
    def mark_as_suspect(self, ping_candidate):
         self.mark_as(ping_candidate, MemberStatus.SUSPECT)
 

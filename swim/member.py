@@ -11,7 +11,7 @@ class Member(object):
       self.tried = tried
       ## until determined
       self.state = None
-      self.last_updated = time.time()
+      self.incarnation = 0
    def connection_string(self):
       return make_connection_string(self.host, self.port)
    def get_host(self):
@@ -26,16 +26,15 @@ class Member(object):
       return self.tried
    def set_host(self, host):
        self.host = host
-   def set_last_updated(self, last_updated):
-       self.last_updated = last_updated
    def set_port(self, port):
        self.port = port
    def set_state(self, state):
        self.state
    def set_tried(self, tried):
       self.tried = tried
+   def increment_incarnation(self):
+      self.incarnation += 1
    def update(self,state):
         logger.info("SETTING %s's STATE TO %s"%( self.connection_string(), state, ) )
         self.set_state( state )
-        self.set_last_updated(time.time())
 

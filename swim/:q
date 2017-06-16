@@ -97,8 +97,18 @@ class Swim(object):
             try:
                 message = main_queue.get()
                 logger.info("RECEIVED MESSAGE: %s"%( message.type, ))
-                if message.type == MessageProcTypes.DISSEMINATION_UPDATE:
-                     dissemination_update_queue.put( message )
+                if message.type == MessageProcTypes.UPDATE_MEMBER_START:
+                      dissemination_queue = self.manager.Queue()
+                      dissemination_process = SwimDisseminationProcess(target=run_dissemination_process,
+                            args=(
+                                main_queue,
+                                dissemination_queue,
+                                message.data,
+                                self.membership),
+                            queue=dissemination_queue)
+                      dissemination_processes.append( dissemination_process )
+                      dissemination_process.daemon = True
+                      dissemination_process.start()
                 if message.type == MessageProcTypes.UPDATE_MEMBER:
                      self.membership.update_member( message.data )
                 elif message.type == MessageProcTypes.RELAY_MEMBERS:
@@ -129,12 +139,7 @@ class Swim(object):
                     member_memory.append_message( message.message )
                 elif message.type == MessageProcTypes.DISSEMINATE:
                     dissemination_queue.put(message.data)
-                elif message.type == MessageProcTypes.FAULTY_MEMBER:
-                    member_memory = self.membership.from_host_and_port(
-                        message.member.get_host(),
-                        message.member.get_port())
-                    member_list = self.membership.get_members()
-                    member_list.remove( member_memory )
+
             except Exception, ex:
                 print_exc( ex )
                 pass
