@@ -31,8 +31,14 @@ class Membership(MemberList):
         eval_state = member.get_state()
         def refresh_member(state):
             memory_member.update(state)
-            message = MessageProc(MessageProcTypes.UPDATE_MEMBER,member)
+            message = MessageProc(MessageProcTypes.UPDATE_MEMBER,memory_member)
             self.queue.put( message )
+        def first_state_eval(state):
+            if ( eval_state == MemberStatus.ALIVE ):
+                refresh_member(eval_state)
+            elif ( eval_state == MemberStatus.SUSPECT ):
+                refresh_member(eval_state)
+                suspect_timeout()
         def suspect_timeout():
            logger.info("IN SUSPECT TIMEOUT FOR %s"%( member.connection_string(), ))
            time.sleep(SwimDefaults.SUSPECT_TIMEOUT)
@@ -41,13 +47,15 @@ class Membership(MemberList):
            member = self.recv_queue.get()
            reeval_state = member.get_state()
            logger.info("REEVALUTED STATUS FOR %s IS %s"%(member.connection_string(), reeval_state,))
+           ## check if we're still a suspect
+           ## when we are not ignore any further
+           ## update
            if ( reeval_state == eval_state ) and ( eval_state == MemberStatus.SUSPECT ):
              ## it has failed
              refresh_member(MemberStatus.FAULTY)
 
         if member.get_state()!=memory_member.get_state():
-            refresh_member(eval_state)
-            suspect_timeout()
+            first_state_eval(eval_state)
     def sync(self, data):
         def map_destination( destination ):
            host_string = destination.split(":")
@@ -96,3 +104,6 @@ class Membership(MemberList):
             member.set_tried(False)
         shuffle( members )
         return members
+    def update_member(self, updated_member):
+        memory_member = self.from_host_and_port(updated_member.get_host(),updated_member.get_port())
+        memory_member.update( updated_member.get_state() )
