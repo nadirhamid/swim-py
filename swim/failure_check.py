@@ -19,19 +19,21 @@ class FailureCheck(SwimClient):
 
    def try_a_ping(self, ping_candidate):
        try:
-           self.do_request(ping_candidate, Message(MessageTypes.PING), 
+           self.send(ping_candidate, Message(MessageTypes.PING), 
                     timeout=self.opts.ping_timeout)
        except Exception,ex: ## A socket exception
+         print_exc(ex)
          raise SwimPingFailedException()
 
    def routine_ping(self, ping_candidate):
-       received_ack[ 0 ] = False
+       received_ack  = [ False ]
        def try_relay(relay_member):
          try:
             self.relay_ping_request( relay_member, ping_candidate )
             received_ack[ 0 ] = True
          except SwimPingRequestFailedException,ex:
             ## DESTINATION did not respond. mark as suspect
+            print_exc(ex)
             logger.info("PING REQUEST FAILED FROM HOST %s TO CANDIDATE %s"%( relay_member.connection_string(), ping_candidate.connection_string(), ) )
        def verify_ack():
           if received_ack[ 0 ]:
@@ -42,7 +44,7 @@ class FailureCheck(SwimClient):
        def loop_relay():
             ## try to relay
             logger.info("RELAYING PING TO OTHER MEMBERS")
-            self.queue.put(MessageProc(MessageProcTypes.RELAY_MEMBERS))
+            self.queue.put(MessageProc(MessageProcTypes.RELAY_MEMBERS, ping_candidate))
             relay_members = self.recv_queue.get()
             logger.info("RELAY MEMBERS RECEIVED")
             for relay_member in relay_members:
@@ -53,36 +55,42 @@ class FailureCheck(SwimClient):
        try:
             self.try_a_ping(ping_candidate)
        except SwimPingFailedException,ex:
+            print_exc(ex)
             logger.info("PING FAILED FOR HOST: %s"%( ping_candidate.connection_string(), ))
             loop_relay()
-   def routine_ping_request(self,origin,ping_candidate):
+   def routine_ping_request(self,origin_socket,ping_candidate):
         ## DESTINATION responded send an Ack to the origin
         def report_to_origin():
-            self.do_request(origin,
+            self.send_with_socket(origin_socket,
                Message(MessageTypes.ACK) )
         try:
+            logger.info("DOING ROUTINE PING REQUEST TO %s"%(ping_candidate.connection_string() ))
             self.try_a_ping(ping_candidate)
             report_to_origin()
         except SwimPingFailedException,ex:
+            print_exc(ex)
             logger.info("PING FAILED FOR HOST: %s"%( ping_candidate.connection_string(), ))
 
    def relay_ping_request(self, ping_request_candidate, ping_candidate):
         try:
-           self.do_request(
-            ping_request,
+           logger.info("RELAYING PING REQUEST FROM %s TO %s"%( ping_request_candidate.connection_string(), ping_candidate.connection_string(), ))
+           self.send(
+            ping_request_candidate,
             Message(MessageTypes.PING_REQUEST,
-                dict(
+                **dict(
                     destination=ping_candidate.connection_string()
                 )
             ),
-            timeout=self.opts.ping_request_timeout
+            timeout=self.opts.ping_req_timeout
            )
         except Exception,ex:
             ##rethrow the DESTINATION did not respond
+            print_exc(ex)
             raise SwimPingRequestFailedException()
    def mark_as(self, ping_candidate, status):
+       logger.info("MARKING CANDIDATE %s STATE TO %s"%( ping_candidate.connection_string(), status, ))
        ping_candidate.set_state( status )
-       logger.info("UPDATING LOCAL MEMBERSHIP QUEUE")
+       logger.info("UPDATING MEMBER IN MEMBER QUEUE")
        self.queue.put(
             MessageProc(MessageProcTypes.UPDATE_MEMBER_START,
                 ping_candidate ) )
@@ -100,5 +108,4 @@ class FailureCheck(SwimClient):
            ping_candidate = self.recv_queue.get()
            logger.info("PINGING CANDIDATE %s"%(ping_candidate.connection_string()))
            self.routine_ping( ping_candidate )
-           ping_candidate.set_tried(True)
            time.sleep( self.opts.ping_timeout )

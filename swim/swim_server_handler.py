@@ -11,6 +11,7 @@ from .member import Member
 from .swim_defaults import SwimDefaults
 from .swim_client import SwimClient
 from .swim_server import SwimServer
+from .failure_check import FailureCheck
 from traceback import print_exc
 
 
@@ -25,17 +26,15 @@ class SwimServerHandler(SwimClient, SocketServer.BaseRequestHandler):
         SocketServer.BaseRequestHandler.__init__(self, request, client_address, server)
 
     def handle_ping(self, sender, message):
-        hostname = sender.getpeername()
-        member = Member(hostname[0], hostname[1])
-        self.do_request(member, Message(MessageTypes.ACK))
+        logger.info("HANDLING PING")
+        self.send_with_socket(sender, Message(MessageTypes.ACK))
     def handle_ping_request(self, sender, message):
+        logger.info("HANDLING PING REQUEST")
         hostname = sender.getpeername()
-        candidate = Member( message.get_host(), message.get_port() )
-        origin = Member(hostname[0], hostname[1])
-
+        candidate = Member( message.get_destination_host(), message.get_destination_port() )
         failure_check = FailureCheck(self.opts)
         failure_check.routine_ping_request(
-             origin, 
+             sender, 
              candidate)
     def handle_update(self, sender, message):
         self.server.swim.membership.update(message)
@@ -45,6 +44,7 @@ class SwimServerHandler(SwimClient, SocketServer.BaseRequestHandler):
     def handle(self):
         try:
             data = self.request.recv(SwimDefaults.BUFFER_SIZE)
+            logger.info("RECEIVED A MESSAGE %s"%( data, ))
             packet = self.opts.transport_serializer.loads( data )
             message = Message.from_dict(packet)
             logger.info("RECEIVED A MESSAGE TYPE %s"%( message.get_type(), ))

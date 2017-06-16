@@ -73,17 +73,20 @@ class Membership(MemberList):
         candidates_available = self.get_candidates()
         if not len( candidates_available ) > 0:
             candidates_available = self.shuffle()
-        return candidates_available[ 0 ]
-    def fetch_relay_members(self):
+        candidate = candidates_available[ 0 ]
+        candidate.set_tried( True )
+        return candidate
+    def fetch_relay_members(self, ping_candidate):
         amount_of_random = self.opts.get("ping_req_group_size")
         random_members = []
-        members = self.get_members()
-
-        while (len( random_members ) != amount_of_random) and ( len( random_members ) < len( members ) ):
+        for_member = self.from_host_and_port(ping_candidate.get_host(), ping_candidate.get_port())
+        members = self.get_members()[:]
+        members.remove(for_member)
+        while (len( random_members ) != amount_of_random) and ( len( members ) > 0 ):
             a_choice = choice(members)
             random_members.append( a_choice )
+            members.remove(a_choice)
         return random_members
-   
         
     def set_members(self, members):
         self.members = members

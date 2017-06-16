@@ -78,7 +78,7 @@ class Swim(Base):
                 if message.type == MessageProcTypes.UPDATE_MEMBER:
                      self.membership.update_member( message.data )
                 elif message.type == MessageProcTypes.RELAY_MEMBERS:
-                     relay_members = self.membership.fetch_relay_members()
+                     relay_members = self.membership.fetch_relay_members(message.data)
                      failure_queue.put( relay_members )
                 elif message.type == MessageProcTypes.NEXT_CANDIDATE:
                      candidate = self.membership.next_candidate()
