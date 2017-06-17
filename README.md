@@ -50,5 +50,6 @@ Credits
 This library is based on
 http://www.cs.cornell.edu/~asdas/research/dsn02-SWIM.pdf
 
-Module Author:
-```Nadir Hamid (matrix.nad@gmail.com)```
+Module Author
+
+Nadir Hamid (matrix.nad@gmail.com)
