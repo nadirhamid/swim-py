@@ -47,7 +47,7 @@ swim.start()
 Credits
 =========================================================
 
-This library is based on
+This module is based on
 http://www.cs.cornell.edu/~asdas/research/dsn02-SWIM.pdf
 
 Module Author
