@@ -36,6 +36,7 @@ swim = Swim({
         "local": "127.0.0.1:5700",
         "ping_timeout": 1,
         "ping_req_timeout": 1,
+        "ping_req_group_size": 3,
         "hosts": [
             "127.0.0.1:5701",
             "127.0.0.1:5702"
