@@ -15,7 +15,8 @@ import time
 
 class FailureCheck(SwimClient):
    def __init__(self, opts):
-       self.opts = SwimFailureOptions(opts)
+       self.local = opts.local
+       self.opts = SwimFailureOptions(opts.original)
 
    def try_a_ping(self, ping_candidate):
        try:
@@ -76,7 +77,7 @@ class FailureCheck(SwimClient):
    def relay_ping_request(self, ping_request_candidate, ping_candidate):
         try:
            logger.info("RELAYING PING REQUEST FROM %s TO %s"%( ping_request_candidate.connection_string(), ping_candidate.connection_string(), ))
-           self.send_with_incarnation(
+           result = self.send_with_incarnation(
             MessageProcTypes.MEMBER_LOCAL_FAILURE,
             ping_request_candidate,
             Message(MessageTypes.PING_REQUEST,
@@ -86,6 +87,8 @@ class FailureCheck(SwimClient):
             ),
             timeout=self.opts.ping_req_timeout
            )
+           if not result:
+              raise Exception()##rethrow
         except Exception,ex:
             ##rethrow the DESTINATION did not respond
             print_exc(ex)
@@ -94,7 +97,9 @@ class FailureCheck(SwimClient):
        logger.info("MARKING CANDIDATE %s STATE TO %s"%( ping_candidate.connection_string(), status, ))
        self.queue.put( 
           MessageProcDisseminate(ping_candidate,Message(MessageTypes.UPDATE, **dict(
-                state=status
+                state=status,
+                origin=self.local,
+                destination=ping_candidate.connection_string()
             )) )
        )
    def mark_as_suspect(self, ping_candidate):
@@ -106,9 +111,11 @@ class FailureCheck(SwimClient):
 
    def start(self):
        while True:
-           logger.info("FETCHING NEXT CANDIDATE FOR FAILURE DETECTION")
            self.queue.put(MessageProc(MessageProcTypes.NEXT_CANDIDATE))
            ping_candidate = self.recv_queue.get()
+           if not ping_candidate:
+              ## no candidate to ping currently
+              continue
            logger.info("PINGING CANDIDATE %s"%(ping_candidate.connection_string()))
            self.routine_ping( ping_candidate )
            time.sleep( self.opts.ping_timeout )

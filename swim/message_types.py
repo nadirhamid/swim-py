@@ -5,4 +5,4 @@ class MessageTypes(object):
     ACK =  "ACK"
     UPDATE = "UPDATE"
     CONFIRM = "CONFIRM"
-    SYNC = "SYNC"
+    JOIN = "JOIN"

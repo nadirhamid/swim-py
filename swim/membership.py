@@ -16,8 +16,17 @@ class Membership(MemberList):
         MemberList.__init__(self, opts.get("hosts"))
         self.member_local = member_local
         self.opts = opts
+
+    def add_member_if_needed(self, member):
+        current_member = self.from_host_and_port(member.get_host(), member.get_port())
+        local_member = self.get_member_local()
+        if current_member is None and not local_member.matches(member):
+           self.members.append(member)
+       
     def get_members(self):        
         return self.members
+    def get_member_local(self):
+        return self.member_local
     def get_candidates(self):
         def filter_fn(member):
             if not (member.tried):
@@ -25,71 +34,14 @@ class Membership(MemberList):
             return False
         candidates = filter( filter_fn, self.get_members() )
         return candidates
-
-    def update(self, member):
-        logger.info("MEMBERSHIP UPDATE START FOR: %s"%(member.connection_string()))
-        memory_member = self.from_host_and_port(member.get_host(), member.get_port())
-        eval_state = member.get_state()
-        def message_sort(message_a, message_b):
-            state_a = message_a.get_state() 
-            incarnation_a = message_a.get_incarnation()
-            state_b = message_b.get_state() 
-            incarnation_b = message_b.get_incarnation()
-            if ( state_a == MemberStatus.CONFIRM ):
-                return -1
-            if (  ( state_a == MemberStatus.ALIVE and state_b == MemberStatus.SUSPECT ) and ( incarnation_a > incarnation_b ) ):
-                return -1
-            if (  ( state_a == MemberStatus.SUSPECT and state_b == MemberStatus.ALIVE ) and ( incarnation_a > incarnation_b ) ):
-                return -1
-            return 1
-
-        def determine_state():
-           self.queue.put(MessageProc(MessageProcTypes.MEMBER), MessageProcMember(member,pid))
-           member = self.recv_queue.get()
-           messages = member.get_message_queue()
-           first_message = sorted(messages, cmp=message_sort)[0]
-           return first_message.get_state()
-            
-         
-        def refresh_member(state):
-            memory_member.update(state)
-            message = MessageProc(MessageProcTypes.UPDATE_MEMBER,memory_member)
-            self.queue.put( message )
-
-        def first_state_eval(state):
-           state = determine_state(messages)
-           refresh_member(state)
-           if state == MemberStatus.SUSPECT:
-              suspect_timeout()
-
-        def suspect_timeout():
-           logger.info("IN SUSPECT TIMEOUT FOR %s"%( member.connection_string(), ))
-           time.sleep(SwimDefaults.SUSPECT_TIMEOUT)
-           pid = os.getpid()
-           state = determine_state()
-           
-           logger.info("REEVALUTED STATUS FOR %s IS %s"%(member.connection_string(), reeval_state,))
-           self.queue.put( MessageProc(MessageProcTypes.DISSEMINATE,Message(
-                   MessageTypes.UPDATE,
-                   **dict(
-                        destination=member.connection_string(),
-                        state=state ) ) ))
-        first_state_eval(eval_state)
-    def sync(self, data):
-        def map_destination( destination ):
-           host_string = destination.split(":")
-           return Member( host_string[ 0 ], host_string[ 1 ] ) 
-
-        hosts = data['hosts']
-        self.members = self.members + map(map_destination, hosts)
-
     def from_host_and_port(self, host, port):
         def filter_fn(member):
             if member.get_host() == host and member.get_port() == port:
                 return True
             return False
         members_found = filter( filter_fn, self.get_members() )
-        return members_found[ 0 ]
+        if len( members_found ) > 0:
+          return members_found[ 0 ]
     def from_socket(self, socket):
         hostname = socket.gethostname()
         return self.from_host_and_port(hostname[0], int(hostname[1]))
@@ -97,6 +49,9 @@ class Membership(MemberList):
         splitted = connection_string.split(":")
         return self.from_host_and_port(splitted[0], int(splitted[1]))
     def next_candidate(self):
+        members = self.get_members()
+        if not len( members ) > 0:
+            return
         candidates_available = self.get_candidates()
         if not len( candidates_available ) > 0:
             candidates_available = self.shuffle()

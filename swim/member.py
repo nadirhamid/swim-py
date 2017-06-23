@@ -12,8 +12,14 @@ class Member(object):
       ## until determined
       self.state = None
       self.incarnation = 0
+   def matches(self, other):
+      if self.host == other.host and self.port == other.port:
+          return True
+      return False
    def connection_string(self):
       return make_connection_string(self.host, self.port)
+   def get_incarnation(self):
+      return self.incarnation
    def get_host(self):
       return self.host
    def get_last_updated(self):

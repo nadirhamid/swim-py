@@ -15,20 +15,20 @@ class SwimClient(object):
        self.queue.put(MessageProc( incarnation_type ))
        local_member = self.recv_queue.get()
        packet.set_incarnation(local_member.get_incarnation())
-       self.send(member, packet, timeout, recv)
-   def send_with_socket(self,sock,packet,timeout=3,recv=True):
+       return self.send(member, packet, timeout, recv)
+   def send_with_socket(self,sock,packet,timeout=3, recv=True):
         data = self.opts.transport_serializer.dumps( packet )
         logger.info("SENDING REQUEST %s"%(data,))
         sock.send(data)
-        if recv:
-            logger.info("TRYING TO RECEIVE RESPONSE FROM SOCKET")
-            ready = select([sock], [], [], timeout)
-            if ready[ 0 ]:
-               response = sock.recv(SwimDefaults.BUFFER_SIZE)
-            logger.info("RECEIVED RESPONSE %s"%(response,))
+        logger.info("TRYING TO RECEIVE RESPONSE FROM SOCKET")
+        ready = select([sock], [], [], timeout)
+        if ready[ 0 ]:
+           response = sock.recv(SwimDefaults.BUFFER_SIZE)
+        logger.info("RECEIVED RESPONSE %s"%(response,))
         sock.close()
+        return response
    def send(self,member,packet,timeout=3,recv=True):
        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
        sock.settimeout(timeout)
        sock.connect((member.get_host(), member.get_port(),))
-       self.send_with_socket(sock,packet,recv=recv)
+       return self.send_with_socket(sock,packet,recv=recv)

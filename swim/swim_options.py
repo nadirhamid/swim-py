@@ -16,6 +16,8 @@ class SwimOptions(SwimOptionsBase):
         self.local = opts.get("local", SwimDefaults.LOCAL)
         self.interval = opts.get("interval", SwimDefaults.INTERVAL)
         self.join_timeout = opts.get("join_timeout", SwimDefaults.JOIN_TIMEOUT)
+        self.suspect_timeout = opts.get("suspect_timeout", SwimDefaults.SUSPECT_TIMEOUT)
+        self.dissemination_timeout = opts.get("dissemination_timeout", SwimDefaults.DISSEMINATION_TIMEOUT)
         self.transport_serializer = opts.get("transport_serializer", TransportSerializer)
         SwimOptionsBase.__init__(self, opts)
 

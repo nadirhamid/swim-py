@@ -19,10 +19,16 @@ class Message(dict):
         return self.destination_host
     def get_destination_port(self):
         return self.destination_port
+    def get_origin(self):
+        return self.get_meta_key("origin")
+    def get_incarnation(self):
+        return self.get_meta_key("incarnation")
     def get_state(self):
         return self.get_meta_key("state")
     def get_type(self):
         return self.get("type")
+    def set_incarnation(self, value):
+        self['meta']['incarnation'] = value
     @staticmethod
     def from_dict(a_dict):
         return Message(
